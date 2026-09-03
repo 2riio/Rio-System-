@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ====================== الإعدادات ======================
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 # الرتب
 MEMBER_ROLE_ID = 1524577434169774140
