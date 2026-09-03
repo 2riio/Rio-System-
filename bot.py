@@ -1,12 +1,13 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # ====================== الإعدادات ======================
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN = os.getenv("TOKEN")
 
 # الرتب
 MEMBER_ROLE_ID = 1524577434169774140
@@ -39,11 +40,18 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 bot.image_url = DEFAULT_IMAGE
 
 
+# ================== تسجيل أوامر السلاش ==================
 @bot.event
 async def on_ready():
     print(f"✅ البوت شغال باسم: {bot.user}")
+    try:
+        await bot.tree.sync()  # يسجل الأوامر في كل السيرفرات (ياخذ ساعة عشان يظهر)
+        print("✅ تم تسجيل أوامر السلاش بنجاح!")
+    except Exception as e:
+        print(f"❌ خطأ في تسجيل السلاش: {e}")
 
 
+# ================== حدث دخول عضو جديد ==================
 @bot.event
 async def on_member_join(member: discord.Member):
     guild = member.guild
@@ -80,6 +88,7 @@ async def on_member_join(member: discord.Member):
             print(f"خطأ في الترحيب: {e}")
 
 
+# ================== حدث قراءة الرسائل ==================
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -118,8 +127,14 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
 
+# ================== أوامر البريفكس (النظام القديم) ==================
+@bot.command(name="ping")
+async def prefix_ping(ctx):
+    await ctx.send(f"🏓 Pong! {round(bot.latency * 1000)}ms")
+
+
 @bot.command(name="setimage")
-async def set_image(ctx: commands.Context, url: str):
+async def prefix_setimage(ctx: commands.Context, url: str):
     if not any(role.id == STAFF_ROLE_ID for role in ctx.author.roles):
         await ctx.send("ما عندكِ صلاحية.", delete_after=5)
         return
@@ -132,9 +147,26 @@ async def set_image(ctx: commands.Context, url: str):
     await ctx.send(f"تم تغيير صورة الرد التلقائي بنجاح ✅\n{url}")
 
 
-@bot.command(name="ping")
-async def ping(ctx):
-    await ctx.send(f"البوت شغال | {round(bot.latency * 1000)}ms")
+# ================== أوامر السلاش (النظام الجديد) ==================
+@bot.tree.command(name="ping", description="يعرض سرعة الاتصال بالبوت")
+async def slash_ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"🏓 Pong! {round(bot.latency * 1000)}ms")
 
 
+@bot.tree.command(name="setimage", description="تغيير صورة الرد التلقائي (للمشرفين فقط)")
+async def slash_setimage(interaction: discord.Interaction, url: str):
+    # التحقق من صلاحية المشرف
+    if not any(role.id == STAFF_ROLE_ID for role in interaction.user.roles):
+        await interaction.response.send_message("ما عندك صلاحية.", ephemeral=True)
+        return
+
+    if not url.startswith("http"):
+        await interaction.response.send_message("الرابط لازم يبدأ بـ http", ephemeral=True)
+        return
+
+    bot.image_url = url
+    await interaction.response.send_message(f"✅ تم تغيير الصورة بنجاح\n{url}")
+
+
+# ================== تشغيل البوت ==================
 bot.run(TOKEN)
